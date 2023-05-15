@@ -8,6 +8,7 @@ from colorama import Fore, Style, init as colorama_init
 from diffusers.pipelines.stable_diffusion.convert_from_ckpt import download_from_original_stable_diffusion_ckpt
 import torch
 import re as regex
+import time
 
 API_ENDPOINT = "https://civitai.com/api/v1/models/"
 image_size = 512
@@ -66,19 +67,21 @@ def make_arg_parser():
 def file_not_exist_or_can_override(filename: str, checksum: str):
     if not isfile(filename):
         return True
-    print(f'{Fore.RED}{filename}{Style.RESET_ALL} already exist.')
+    print(f'File {Fore.RED}{filename}{Fore.RESET} already exist.')
+    time.sleep(0.2)
     res = compare_checksum(filename, checksum)
     print(f'Checksums are {"identical" if res else "different"}.')
     if res:
+        print('No need to download the checkpoint file. Continuing the process with existing one...')
         return False
     return get_user_decision()
 
 
 def get_user_decision() -> bool:
     while True:
-        user_decision = input(f'Type {Fore.RED}y/yes{Style.RESET_ALL} to download and override the checkpoint, '
-                              f'{Fore.RED}n/no{Style.RESET_ALL} to continue with saved checkpoint'
-                              f' or {Fore.RED}a/abort{Style.RESET_ALL} to exit the program.')
+        user_decision = input(f'Type {Fore.RED}y/yes{Fore.RESET} to re-download and override the checkpoint file, '
+                              f'{Fore.RED}n/no{Fore.RESET} to continue with existing checkpoint '
+                              f'or {Fore.RED}a/abort{Fore.RESET} to exit the program.')
         user_decision = user_decision.lower().strip()
         if user_decision == 'y' or user_decision == 'yes':
             return True
@@ -89,7 +92,7 @@ def get_user_decision() -> bool:
 
 
 def exit_with_error(err: str):
-    print(Fore.RED, err, Style.RESET_ALL)
+    print(Fore.RED, err, Fore.RESET)
     exit(0)
 
 
@@ -142,7 +145,7 @@ if __name__ == "__main__":
         while True:
             download(download_url, checkpoint)
             if not compare_checksum(filename=checkpoint, checksum=remote_checksum):
-                print('Checksums are different. ')
+                print('Checksums are different. File most likely is corrupt.')
                 if not get_user_decision():
                     break
 
@@ -161,3 +164,4 @@ if __name__ == "__main__":
         pipe.to(torch_device='cuda')
 
     pipe.save_pretrained(save_directory=args.output)
+    print('Conversion is done!')
