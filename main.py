@@ -1,8 +1,9 @@
+import hashlib
 import requests
 import argparse
 from tqdm import tqdm
 from os.path import isdir, isfile
-from os import makedirs
+from os import stat, makedirs
 from colorama import Fore, Style, init as colorama_init
 from diffusers.pipelines.stable_diffusion.convert_from_ckpt import download_from_original_stable_diffusion_ckpt
 import torch
@@ -28,6 +29,21 @@ def download(url: str, filename: str):
             bar.update(size)
 
 
+def get_sha256_checksum(filename: str) -> str:
+    sha256_hash = hashlib.sha256()
+    with open(filename, "rb") as f, tqdm(
+            desc='Comparing checksum',
+            total=stat(filename).st_size,
+            unit='iB',
+            unit_scale=True,
+            unit_divisor=1024
+    ) as bar:
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash.update(byte_block)
+            bar.update(4096)
+        return sha256_hash.hexdigest().upper()
+
+
 def make_arg_parser():
     parser = argparse.ArgumentParser(
         prog='CivitAI model downloader',
@@ -44,23 +60,25 @@ def make_arg_parser():
         type=str,
         default=None,
         help='Path to the output model.')
-    parser.add_argument(
-        '--safety_checker', '-s',
-        action="store_true",
-        default=False,
-        help='Determines whether to load the safety checker. Defaults to False. '
-             'Apply the argument to load the safety checker.'
-    )
     return parser.parse_args()
 
 
-def file_not_exist_or_can_override(filename: str):
+def file_not_exist_or_can_override(filename: str, checksum: str):
     if not isfile(filename):
         return True
-    print(f'{filename} already exist. Override the file?')
+    print(f'{Fore.RED}{filename}{Style.RESET_ALL} already exist.')
+    res = compare_checksum(filename, checksum)
+    print(f'Checksums are {"identical" if res else "different"}.')
+    if res:
+        return False
+    return get_user_decision()
+
+
+def get_user_decision() -> bool:
     while True:
-        user_decision = input('Type y/yes to download and override the checkpoint, '
-                              'n/no to continue with saved checkpoint or a/abort to exit the program.')
+        user_decision = input(f'Type {Fore.RED}y/yes{Style.RESET_ALL} to download and override the checkpoint, '
+                              f'{Fore.RED}n/no{Style.RESET_ALL} to continue with saved checkpoint'
+                              f' or {Fore.RED}a/abort{Style.RESET_ALL} to exit the program.')
         user_decision = user_decision.lower().strip()
         if user_decision == 'y' or user_decision == 'yes':
             return True
@@ -73,6 +91,12 @@ def file_not_exist_or_can_override(filename: str):
 def exit_with_error(err: str):
     print(Fore.RED, err, Style.RESET_ALL)
     exit(0)
+
+
+def compare_checksum(filename: str, checksum: str) -> bool:
+    if not isfile(filename):
+        return False
+    return get_sha256_checksum(filename) == checksum
 
 
 if __name__ == "__main__":
@@ -112,18 +136,23 @@ if __name__ == "__main__":
 
     download_url = response['modelVersions'][0]['files'][0]['downloadUrl']
     checkpoint = f'checkpoints/{checkpoint_name}'
+    remote_checksum = response['modelVersions'][0]['files'][0]['hashes']['SHA256']
 
-    if file_not_exist_or_can_override(checkpoint):
-        download(download_url, checkpoint)
+    if file_not_exist_or_can_override(checkpoint, remote_checksum):
+        while True:
+            download(download_url, checkpoint)
+            if not compare_checksum(filename=checkpoint, checksum=remote_checksum):
+                print('Checksums are different. ')
+                if not get_user_decision():
+                    break
 
     if not args.output:
         args.output = f'models/{dir_name}/'
 
-    print('Note that the process may take up to hours')
+    print('Note that the conversion process may take up to hours')
     pipe = download_from_original_stable_diffusion_ckpt(
         checkpoint_path=checkpoint,
         from_safetensors=True,
-        load_safety_checker=args.safety_checker,
         image_size=image_size)
 
     if fp_half_precision:
