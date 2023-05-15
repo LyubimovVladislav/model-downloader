@@ -127,6 +127,8 @@ if __name__ == "__main__":
         image_size=image_size)
 
     if fp_half_precision:
-        pipe.to(torch_dtype=torch.float16)
+        pipe.to(torch_device='cuda', torch_dtype=torch.float16)
+    else:
+        pipe.to(torch_device='cuda')
 
     pipe.save_pretrained(save_directory=args.output)
