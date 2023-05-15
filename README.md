@@ -10,5 +10,5 @@
    ```
 3. Run the command, where `civitai_model_url` is the url to civitai model:
    ```
-   python -u civitai_model_url
+   python main.py -u civitai_model_url
    ```
