@@ -1,0 +1,9 @@
+requests
+tqdm
+colorama
+diffusers
+torch
+safetensors
+transformers
+omegaconf
+accelerate
