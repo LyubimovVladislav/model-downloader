@@ -75,7 +75,9 @@ def civitai_link(model_id: str, output: str = None):
     pipe = download_from_original_stable_diffusion_ckpt(
         checkpoint_path=data.checkpoint,
         from_safetensors=data.checkpoint_format == 'SafeTensor',
-        image_size=data.image_size)
+        image_size=data.image_size,
+        device='cuda'
+    )
 
     if data.fp_half_precision:
         pipe.to(torch_dtype=torch.float16)
