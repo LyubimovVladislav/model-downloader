@@ -46,7 +46,6 @@ def create_folders():
 
 
 def load_lora(data, output):
-    exit_with_error('LoRA not supported')
 
     file = 'checkpoints/stable_diffusion_1_5.safetensors'
     download('https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/v1-5-pruned.safetensors',
@@ -56,7 +55,7 @@ def load_lora(data, output):
     base = StableDiffusionPipeline.from_ckpt(file, extract_ema=True,torch_dtype=torch.float16)
     base.to("cuda")
     # base.save_pretrained(save_directory=res_dir)
-    pipe = load_lora_weights(base, file, 1.0, 'cuda', torch.float16 if data.fp_half_precision else torch.float32)
+    pipe = load_lora_weights(base, file)
     pipe = pipe.to(torch_dtype=torch.float16 if data.fp_half_precision else torch.float32)
     pipe.save_pretrained(output, safe_serialization=True)
 

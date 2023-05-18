@@ -1,47 +1,44 @@
-from safetensors.torch import load_file
-from collections import defaultdict
-from diffusers.loaders import LoraLoaderMixin
+"""
+This script shows a naive way, may be not so elegant, to load Lora (safetensors) weights in to diffusers model
+
+For the mechanism of Lora, please refer to https://github.com/cloneofsimo/lora
+
+Copyright 2023: Haofan Wang, Qixun Wang
+"""
+
 import torch
+from safetensors.torch import load_file
+from diffusers import StableDiffusionPipeline
+from diffusers import DPMSolverMultistepScheduler
 
-current_pipeline = None
-original_weights = {}
 
+def load_lora_weights(pipeline, checkpoint_path):
+    pipeline.scheduler = DPMSolverMultistepScheduler.from_config(pipeline.scheduler.config)
 
-def load_lora_weights(pipeline, checkpoint_path, multiplier, device, dtype):
-    global current_pipeline, original_weights
+    state_dict = load_file(checkpoint_path)
 
-    if pipeline != current_pipeline:
-        backup = True
-        current_pipeline = pipeline
-        original_weights = {}
-    else:
-        backup = False
+    LORA_PREFIX_UNET = 'lora_unet'
+    LORA_PREFIX_TEXT_ENCODER = 'lora_te'
 
-    # load base model
-    pipeline.to(device)
-    lora_prefix_unet = "lora_unet"
-    lora_prefix_text_encoder = "lora_te"
-    # load LoRA weight from .safetensors
-    state_dict = load_file(checkpoint_path, device=device)
+    alpha = 0.75
 
-    updates = defaultdict(dict)
-    for key, value in state_dict.items():
+    visited = []
+
+    # directly update weight in diffusers model
+    for key in state_dict:
+
         # it is suggested to print out the key, it usually will be something like below
         # "lora_te_text_model_encoder_layers_0_self_attn_k_proj.lora_down.weight"
 
-        layer, elem = key.split('.', 1)
-        updates[layer][elem] = value
+        # as we have set the alpha beforehand, so just skip
+        if '.alpha' in key or key in visited:
+            continue
 
-    index = 0
-    # directly update weight in diffusers model
-    for layer, elems in updates.items():
-        index += 1
-
-        if "text" in layer:
-            layer_infos = layer.split(lora_prefix_text_encoder + "_")[-1].split("_")
+        if 'text' in key:
+            layer_infos = key.split('.')[0].split(LORA_PREFIX_TEXT_ENCODER + '_')[-1].split('_')
             curr_layer = pipeline.text_encoder
         else:
-            layer_infos = layer.split(lora_prefix_unet + "_")[-1].split("_")
+            layer_infos = key.split('.')[0].split(LORA_PREFIX_UNET + '_')[-1].split('_')
             curr_layer = pipeline.unet
 
         # find the target layer
@@ -55,33 +52,33 @@ def load_lora_weights(pipeline, checkpoint_path, multiplier, device, dtype):
                     break
             except Exception:
                 if len(temp_name) > 0:
-                    temp_name += "_" + layer_infos.pop(0)
+                    temp_name += '_' + layer_infos.pop(0)
                 else:
                     temp_name = layer_infos.pop(0)
 
-        # get elements for this layer
-        weight_up = elems['lora_up.weight'].to(dtype)
-        weight_down = elems['lora_down.weight'].to(dtype)
-        alpha = elems['alpha']
-        if alpha:
-            alpha = alpha.item() / weight_up.shape[1]
+        # org_forward(x) + lora_up(lora_down(x)) * multiplier
+        pair_keys = []
+        if 'lora_down' in key:
+            pair_keys.append(key.replace('lora_down', 'lora_up'))
+            pair_keys.append(key)
         else:
-            alpha = 1.0
-
-        if (backup):
-            original_weights[index] = curr_layer.weight.data.clone().detach()
-        else:
-            curr_layer.weight.data = original_weights[index].clone().detach()
+            pair_keys.append(key)
+            pair_keys.append(key.replace('lora_up', 'lora_down'))
 
         # update weight
-        if len(weight_up.shape) == 4:
-            curr_layer.weight.data += multiplier * alpha * torch.mm(weight_up.squeeze(3).squeeze(2),
-                                                                    weight_down.squeeze(3).squeeze(2)).unsqueeze(
-                2).unsqueeze(3)
+        if len(state_dict[pair_keys[0]].shape) == 4:
+            weight_up = state_dict[pair_keys[0]].squeeze(3).squeeze(2).to(torch.float32)
+            weight_down = state_dict[pair_keys[1]].squeeze(3).squeeze(2).to(torch.float32)
+            curr_layer.weight.data += alpha * torch.mm(weight_up, weight_down).unsqueeze(2).unsqueeze(3)
         else:
-            curr_layer.weight.data += multiplier * alpha * torch.mm(weight_up, weight_down)
+            weight_up = state_dict[pair_keys[0]].to(torch.float32)
+            weight_down = state_dict[pair_keys[1]].to(torch.float32)
+            curr_layer.weight.data += alpha * torch.mm(weight_up, weight_down)
 
+        # update visited list
+        for item in pair_keys:
+            visited.append(item)
+
+    pipeline = pipeline.to("cuda")
+    pipeline.safety_checker = lambda images, clip_input: (images, False)
     return pipeline
-
-
-LoraLoaderMixin.load_lora_weights = load_lora_weights
