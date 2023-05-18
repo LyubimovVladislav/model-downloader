@@ -1,26 +1,24 @@
-# coding=utf-8
-# Copyright 2023, Haofan Wang, Qixun Wang, All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-""" Conversion script for the LoRA's safetensors checkpoints. """
-from collections import defaultdict
-
-import torch
 from safetensors.torch import load_file
+from collections import defaultdict
+from diffusers.loaders import LoraLoaderMixin
+import torch
+
+current_pipeline = None
+original_weights = {}
 
 
 def load_lora_weights(pipeline, checkpoint_path, multiplier, device, dtype):
+    global current_pipeline, original_weights
+
+    if pipeline != current_pipeline:
+        backup = True
+        current_pipeline = pipeline
+        original_weights = {}
+    else:
+        backup = False
+
+    # load base model
+    pipeline.to(device)
     lora_prefix_unet = "lora_unet"
     lora_prefix_text_encoder = "lora_te"
     # load LoRA weight from .safetensors
@@ -34,8 +32,10 @@ def load_lora_weights(pipeline, checkpoint_path, multiplier, device, dtype):
         layer, elem = key.split('.', 1)
         updates[layer][elem] = value
 
+    index = 0
     # directly update weight in diffusers model
     for layer, elems in updates.items():
+        index += 1
 
         if "text" in layer:
             layer_infos = layer.split(lora_prefix_text_encoder + "_")[-1].split("_")
@@ -68,10 +68,20 @@ def load_lora_weights(pipeline, checkpoint_path, multiplier, device, dtype):
         else:
             alpha = 1.0
 
+        if (backup):
+            original_weights[index] = curr_layer.weight.data.clone().detach()
+        else:
+            curr_layer.weight.data = original_weights[index].clone().detach()
+
         # update weight
         if len(weight_up.shape) == 4:
-            curr_layer.weight.data += multiplier * alpha * torch.mm(weight_up.squeeze(3).squeeze(2), weight_down.squeeze(3).squeeze(2)).unsqueeze(2).unsqueeze(3)
+            curr_layer.weight.data += multiplier * alpha * torch.mm(weight_up.squeeze(3).squeeze(2),
+                                                                    weight_down.squeeze(3).squeeze(2)).unsqueeze(
+                2).unsqueeze(3)
         else:
             curr_layer.weight.data += multiplier * alpha * torch.mm(weight_up, weight_down)
 
     return pipeline
+
+
+LoraLoaderMixin.load_lora_weights = load_lora_weights
