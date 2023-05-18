@@ -53,7 +53,7 @@ def load_lora(data, output):
     # res_dir = 'models/stable_diffusion_1_5'
     base = StableDiffusionPipeline.from_ckpt(file, extract_ema=True)
     # base.save_pretrained(save_directory=res_dir)
-    pipe = load_lora_weights(base, file)
+    pipe = load_lora_weights(base, file, 1.0, 'cuda', torch.float16 if data.fp_half_precision else torch.float32)
     pipe = pipe.to(torch_dtype=torch.float16 if data.fp_half_precision else torch.float32)
     pipe.save_pretrained(output, safe_serialization=True)
 
