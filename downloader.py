@@ -1,14 +1,18 @@
 import hashlib
 import time
 from http.client import IncompleteRead
+from xmlrpc.client import ProtocolError
 
 import requests
 from colorama import Fore
+from requests.exceptions import ChunkedEncodingError
 from tqdm import tqdm
 from os import stat
 from os.path import isfile
 
 from user_decision import get_user_decision
+
+model_size = 0
 
 
 def is_file_exist(file: str) -> bool:
@@ -59,12 +63,14 @@ def compare_sizes(file: str, remote_size: int) -> int:
 
 
 def download_from_pos(url: str, filename: str, resume_pos: int = 0):
+    global model_size
     resp = requests.get(
         url,
         stream=True,
         headers={'Range': f'bytes={resume_pos}-'} if resume_pos else None
     )
     total = int(resp.headers.get('content-length', 0))
+    model_size = total + resume_pos
     mode = 'ab' if resume_pos else 'wb'
     with open(filename, mode) as file, tqdm(
             initial=resume_pos,
@@ -87,19 +93,20 @@ def resume_download(download_url: str, file: str):
     download_from_pos(download_url, file, stat(file).st_size)
 
 
-def download(download_url: str, file: str, remote_size: int, remote_checksum: str):
+def download(download_url: str, file: str, remote_checksum: str):
     if is_file_exist(file) and not is_allowed_override(file, remote_checksum):
         return
     while True:
         try:
             start_download(download_url, file)
-        except IncompleteRead as e:
+        except (IncompleteRead, ProtocolError, ChunkedEncodingError, ConnectionError) as e:
             pass
-        while compare_sizes(file, remote_size) < 0:
+        while compare_sizes(file, model_size) < 0:
             try:
                 resume_download(download_url, file)
-            except IncompleteRead as e:
+            except (IncompleteRead, ProtocolError, ChunkedEncodingError, ConnectionError) as e:
                 pass
+            time.sleep(1)
         if is_checksum_equal(file, remote_checksum):
             break
         print('File is corrupted. Restarting download...')
