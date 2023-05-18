@@ -29,7 +29,10 @@ def load_lora_weights(pipeline, checkpoint_path, multiplier, device, dtype):
         # it is suggested to print out the key, it usually will be something like below
         # "lora_te_text_model_encoder_layers_0_self_attn_k_proj.lora_down.weight"
         print(key)
-        layer, elem = key.split('.', 1)
+        try:
+            layer, elem = key.split('.', 1)
+        except Exception as e:
+            continue
         updates[layer][elem] = value
 
     index = 0
