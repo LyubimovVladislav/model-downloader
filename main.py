@@ -1,20 +1,17 @@
-import hashlib
 import requests
 import argparse
-from tqdm import tqdm
-from os.path import isdir, isfile
-from os import stat, makedirs
-from colorama import Fore, Style, init as colorama_init
-from pathlib import Path
+from os.path import isdir
+from os import makedirs
+from colorama import Fore, init as colorama_init
 from diffusers.pipelines.stable_diffusion.convert_from_ckpt import download_from_original_stable_diffusion_ckpt
 import torch
-import re as regex
 from diffusers import StableDiffusionPipeline
 
 from civitai_model_data import CivitaiModelData
+from convert_lora_safetensor_to_diffusers import convert
 from downloader import download
 
-API_ENDPOINT = "https://civitai.com/api/v1/models/"
+API_ENDPOINT = 'https://civitai.com/api/v1/models/'
 
 
 def make_arg_parser():
@@ -48,8 +45,18 @@ def create_folders():
         makedirs('models')
 
 
-def load_lora():
-    exit_with_error('Unsupported checkpoint type.')
+def load_lora(data, output):
+    file = 'checkpoints/stable_diffusion_1_5.ckpt'
+    download('https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/v1-5-pruned.safetensors',
+             file=file,
+             remote_checksum='1a189f0be69d6106a48548e7626207dddd7042a418dbf372cefd05e0cdba61b6')
+    res_dir = 'models/stable_diffusion_1_5'
+    base = StableDiffusionPipeline.from_ckpt(file)
+    base.save_pretrained(save_directory=res_dir)
+    pipe = convert(res_dir, data.checkpoint, 'lora_unet', 'lora_te', '0.75',
+                   torch.float16 if data.fp_half_precision else torch.float32)
+    pipe = pipe.to(torch_dtype=torch.float16 if data.fp_half_precision else torch.float32)
+    pipe.save_pretrained(output, safe_serialization=True)
 
 
 def civitai_link(model_id: str, output: str = None):
@@ -61,15 +68,14 @@ def civitai_link(model_id: str, output: str = None):
     data = CivitaiModelData(response, model_id)
     dir_name = f'{model_id}_{data.repo_name}_{data.version_name}'
 
-    if data.type == 'LORA':
-        load_lora()
-        return
-
-    download(download_url=data.download_url, file=data.checkpoint,
-             remote_size=data.remote_size_bytes, remote_checksum=data.remote_checksum)
+    download(download_url=data.download_url, file=data.checkpoint, remote_checksum=data.remote_checksum)
 
     if not output:
         output = f'models/{dir_name}/'
+
+    if data.type == 'LORA':
+        load_lora(data=data, output=output)
+        return
 
     print('Note that the conversion process may take up to hours')
     pipe = download_from_original_stable_diffusion_ckpt(
@@ -113,9 +119,9 @@ def main():
 
     if remote_repo_type is None:
         exit_with_error('The provided url is not valid.')
-    elif remote_repo_type is 'hf':
+    elif remote_repo_type == 'hf':
         hf_link(args.url, args.output)
-    elif remote_repo_type is 'civit':
+    elif remote_repo_type == 'civit':
         model_id = args.url.split('/')[0]
         if model_id == '':
             exit_with_error('The provided url is not valid.')
