@@ -46,7 +46,7 @@ def create_folders():
 
 
 def load_lora(data, output):
-    file = 'checkpoints/stable_diffusion_1_5.ckpt'
+    file = 'checkpoints/stable_diffusion_1_5.safetensors'
     download('https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/v1-5-pruned.safetensors',
              file=file,
              remote_checksum='1a189f0be69d6106a48548e7626207dddd7042a418dbf372cefd05e0cdba61b6')
