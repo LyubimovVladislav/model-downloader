@@ -51,7 +51,7 @@ def load_lora(data, output):
              file=file,
              remote_checksum='1a189f0be69d6106a48548e7626207dddd7042a418dbf372cefd05e0cdba61b6')
     res_dir = 'models/stable_diffusion_1_5'
-    base = StableDiffusionPipeline.from_ckpt(file)
+    base = StableDiffusionPipeline.from_ckpt(file, extract_ema=True)
     base.save_pretrained(save_directory=res_dir)
     pipe = convert(res_dir, data.checkpoint, 'lora_unet', 'lora_te', '0.75',
                    torch.float16 if data.fp_half_precision else torch.float32)
@@ -82,7 +82,8 @@ def civitai_link(model_id: str, output: str = None):
         checkpoint_path=data.checkpoint,
         from_safetensors=data.checkpoint_format == 'SafeTensor',
         image_size=data.image_size,
-        device='cuda'
+        device='cuda',
+        extract_ema=True
     )
 
     if data.fp_half_precision:
@@ -93,7 +94,7 @@ def civitai_link(model_id: str, output: str = None):
 
 
 def hf_link(url: str, output: str = None):
-    pipe = StableDiffusionPipeline.from_ckpt(url)
+    pipe = StableDiffusionPipeline.from_ckpt(url, extract_ema=True)
     dir_name = url.split('/')[-1].replace('.safetensors', '').replace('.ckpt', '')
     if output is None:
         output = f'models/{dir_name}'
