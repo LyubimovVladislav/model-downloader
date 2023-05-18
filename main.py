@@ -8,7 +8,7 @@ import torch
 from diffusers import StableDiffusionPipeline
 
 from civitai_model_data import CivitaiModelData
-from convert_lora_safetensor_to_diffusers import convert
+from convert_lora_safetensor_to_diffusers import load_lora_weights
 from downloader import download
 
 API_ENDPOINT = 'https://civitai.com/api/v1/models/'
@@ -50,11 +50,10 @@ def load_lora(data, output):
     download('https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/v1-5-pruned.safetensors',
              file=file,
              remote_checksum='1a189f0be69d6106a48548e7626207dddd7042a418dbf372cefd05e0cdba61b6')
-    res_dir = 'models/stable_diffusion_1_5'
+    # res_dir = 'models/stable_diffusion_1_5'
     base = StableDiffusionPipeline.from_ckpt(file, extract_ema=True)
-    base.save_pretrained(save_directory=res_dir)
-    pipe = convert(res_dir, data.checkpoint, 'lora_unet', 'lora_te', '0.75',
-                   torch.float16 if data.fp_half_precision else torch.float32)
+    # base.save_pretrained(save_directory=res_dir)
+    pipe = load_lora_weights(base, file)
     pipe = pipe.to(torch_dtype=torch.float16 if data.fp_half_precision else torch.float32)
     pipe.save_pretrained(output, safe_serialization=True)
 
