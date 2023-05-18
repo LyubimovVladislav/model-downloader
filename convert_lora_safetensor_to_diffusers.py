@@ -28,7 +28,7 @@ def load_lora_weights(pipeline, checkpoint_path, multiplier, device, dtype):
     for key, value in state_dict.items():
         # it is suggested to print out the key, it usually will be something like below
         # "lora_te_text_model_encoder_layers_0_self_attn_k_proj.lora_down.weight"
-
+        print(key)
         layer, elem = key.split('.', 1)
         updates[layer][elem] = value
 
