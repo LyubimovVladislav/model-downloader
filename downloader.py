@@ -110,4 +110,3 @@ def download(download_url: str, file: str, remote_checksum: str):
         if is_checksum_equal(file, remote_checksum):
             break
         print('File is corrupted. Restarting download...')
-    print('The download is complete.')
