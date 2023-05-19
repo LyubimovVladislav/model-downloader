@@ -58,6 +58,7 @@ def load_lora(lora_data, alpha, output):
     # base.save_pretrained(save_directory=res_dir)
     pipe = convert(base_model_data, lora_data, alpha=alpha)
     # torch.float16 if base_model_data.fp_half_precision else torch.float64
+    print('converted')
     pipe = pipe.to(torch_dtype=torch.float64, device='cuda')
     pipe.save_pretrained(output, safe_serialization=True)
     print('Conversion is done!')
@@ -70,7 +71,7 @@ def civitai_link(model_id: str, alpha, output: str = None):
     download(download_url=data.download_url, file=data.checkpoint, remote_checksum=data.remote_checksum)
 
     if not output:
-        output = f'{dirname(__file__)}/models/{dir_name}/'
+        output = f'{dirname(__file__)}/models/{dir_name}'
 
     if data.type == 'LORA':
         data.load_lora_base_model_info()
