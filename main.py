@@ -1,10 +1,9 @@
-import requests
 import argparse
-from os.path import isdir
-from os import makedirs
-from colorama import Fore, init as colorama_init
-from diffusers.pipelines.stable_diffusion.convert_from_ckpt import download_from_original_stable_diffusion_ckpt
 import torch
+from os.path import isdir, dirname
+from os import makedirs
+from colorama import init as colorama_init
+from diffusers.pipelines.stable_diffusion.convert_from_ckpt import download_from_original_stable_diffusion_ckpt
 from diffusers import StableDiffusionPipeline
 
 from civitai_model_data import CivitaiModelData
@@ -40,10 +39,10 @@ def make_arg_parser():
 
 
 def create_folders():
-    if not isdir('checkpoints'):
-        makedirs('checkpoints')
-    if not isdir('models'):
-        makedirs('models')
+    if not isdir(f'{dirname(__file__)}/checkpoints'):
+        makedirs(f'{dirname(__file__)}/checkpoints')
+    if not isdir(f'{dirname(__file__)}/models'):
+        makedirs(f'{dirname(__file__)}/models')
 
 
 def load_lora(data, alpha, output):
@@ -74,7 +73,7 @@ def civitai_link(url: str, alpha, output: str = None):
     download(download_url=data.download_url, file=data.checkpoint, remote_checksum=data.remote_checksum)
 
     if not output:
-        output = f'models/{dir_name}/'
+        output = f'{dirname(__file__)}/models/{dir_name}/'
 
     if data.type == 'LORA':
         data.load_lora_base_model_info()
@@ -101,7 +100,7 @@ def hf_link(url: str, output: str = None):
     pipe = StableDiffusionPipeline.from_ckpt(url, extract_ema=True)
     dir_name = url.split('/')[-1].replace('.safetensors', '').replace('.ckpt', '')
     if output is None:
-        output = f'models/{dir_name}'
+        output = f'{dirname(__file__)}/models/{dir_name}'
     pipe.save_pretrained(save_directory=output)
     print('Conversion is done!')
 

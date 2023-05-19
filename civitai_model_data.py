@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 import re as regex
+from os.path import dirname
 from typing import Optional
 
 import requests
@@ -34,7 +35,7 @@ class CivitaiModelData:
         self.checkpoint_format = response['modelVersions'][0]['files'][0]['metadata']['format']
 
         self.download_url = response['modelVersions'][0]['files'][0]['downloadUrl']
-        self.checkpoint = f'checkpoints/{self.checkpoint_name}'
+        self.checkpoint = f'{dirname(__file__)}/checkpoints/{self.checkpoint_name}'
         self.remote_checksum = response['modelVersions'][0]['files'][0]['hashes']['SHA256']
         self.remote_size_bytes = int(response['modelVersions'][0]['files'][0]['sizeKB'] * 1024)
         self.type = response['type']
