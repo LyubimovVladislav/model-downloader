@@ -45,23 +45,18 @@ def create_folders():
         makedirs(f'{dirname(__file__)}/models')
 
 
-def load_lora(data, alpha, output):
-    base_model_data = data.load_lora_base_model_info()
+def load_lora(lora_data, alpha, output):
+    base_model_data = lora_data.load_lora_base_model_info()
     while True:
         if base_model_data:
             break
-        base_model_data = data.load_lora_base_model_info(ask_for_base_model_link())
+        base_model_data = lora_data.load_lora_base_model_info(ask_for_base_model_link())
 
     download(base_model_data.download_url,
              file=base_model_data.checkpoint,
              remote_checksum=base_model_data.remote_checksum)
-    base_pipe = StableDiffusionPipeline.from_ckpt(
-        base_model_data.checkpoint,
-        extract_ema=True,
-        torch_dtype=torch.float32)
-    base_pipe.to("cuda")
     # base.save_pretrained(save_directory=res_dir)
-    pipe = convert(base_model_data, alpha=alpha)
+    pipe = convert(base_model_data, lora_data, alpha=alpha)
     pipe = pipe.to(torch_dtype=torch.float16 if base_model_data.fp_half_precision else torch.float64, device='cuda')
     pipe.save_pretrained(output, safe_serialization=True)
 
@@ -77,20 +72,19 @@ def civitai_link(url: str, alpha, output: str = None):
 
     if data.type == 'LORA':
         data.load_lora_base_model_info()
-        load_lora(data=data, alpha=alpha, output=output)
+        load_lora(lora_data=data, alpha=alpha, output=output)
         return
 
     print('Note that the conversion process may take up to hours')
-    pipe = download_from_original_stable_diffusion_ckpt(
-        checkpoint_path=data.checkpoint,
-        from_safetensors=data.checkpoint_format == 'SafeTensor',
+    pipe = StableDiffusionPipeline.from_ckpt(
+        pretrained_model_link_or_path=data.checkpoint,
+        use_safetensors=data.checkpoint_format == 'SafeTensor',
         image_size=data.image_size,
-        device='cuda',
-        extract_ema=True
+        extract_ema=True,
+        torch_dtype=torch.float16 if data.fp_half_precision else torch.float64
     )
 
-    if data.fp_half_precision:
-        pipe.to(torch_dtype=torch.float16)
+    pipe.to(torch_device='cuda')
 
     pipe.save_pretrained(save_directory=output)
     print('Conversion is done!')
