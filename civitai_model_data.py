@@ -29,7 +29,6 @@ class CivitaiModelData:
         self.repo_name = regex.sub('[\\\/:*?"<>| ]*', '', response['name'])
         self.version_name = response['modelVersions'][0]['name'].replace(' ', '')
         self.checkpoint_name = response['modelVersions'][0]['files'][0]['name']
-        self.creator = response['items'][0]['creator']['username']
 
         self.checkpoint_name = f'{self.model_id}_{self.checkpoint_name}'
         self.checkpoint_format = response['modelVersions'][0]['files'][0]['metadata']['format']
