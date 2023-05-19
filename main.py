@@ -105,24 +105,17 @@ def main():
         exit_with_error('Alpha cant be negative')
     colorama_init()
     create_folders()
-    remote_repo_type = None
 
     for prefix in ['https://huggingface.co/', 'huggingface.co/', 'hf.co/', 'https://hf.co/']:
         if args.url.startswith(prefix):
-            remote_repo_type = 'hf'
-            break
+            hf_link(args.url, args.output)
+            return
     for prefix in ['https://civitai.com/models/', 'civitai.com/models/']:
         if args.url.startswith(prefix):
-            remote_repo_type = 'civit'
-            args.url = args.url[len(prefix):].split('/')[0]
-            break
-
-    if remote_repo_type is None:
-        exit_with_error('The provided url is not valid.')
-    elif remote_repo_type == 'hf':
-        hf_link(args.url, args.output)
-    elif remote_repo_type == 'civit':
-        civitai_link(args.url, args.alpha, args.output)
+            model_id = args.url[len(prefix):].split('/')[0]
+            civitai_link(model_id, args.alpha, args.output)
+            return
+    exit_with_error('The provided url is not valid.')
 
 
 if __name__ == "__main__":
