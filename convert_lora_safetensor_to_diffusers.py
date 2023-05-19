@@ -25,12 +25,11 @@ from safetensors.torch import load_file
 def convert(base_data, lora_data, alpha=0.75, lora_prefix_text_encoder='lora_te',
             lora_prefix_unet='lora_unet'):
     # load base model
-    base_torch_float = torch.float16 if base_data.fp_half_precision else torch.float64
     pipeline = StableDiffusionPipeline.from_ckpt(
         pretrained_model_link_or_path=base_data.checkpoint,
         image_size=base_data.image_size,
         extract_ema=True,
-        torch_dtype=base_torch_float
+        torch_dtype=torch.float64
     )
 
     # load LoRA weight from .safetensors
@@ -79,12 +78,12 @@ def convert(base_data, lora_data, alpha=0.75, lora_prefix_text_encoder='lora_te'
 
         # update weight
         if len(state_dict[pair_keys[0]].shape) == 4:
-            weight_up = state_dict[pair_keys[0]].squeeze(3).squeeze(2).to(base_torch_float)
-            weight_down = state_dict[pair_keys[1]].squeeze(3).squeeze(2).to(base_torch_float)
+            weight_up = state_dict[pair_keys[0]].squeeze(3).squeeze(2).to(torch.float64)
+            weight_down = state_dict[pair_keys[1]].squeeze(3).squeeze(2).to(torch.float64)
             curr_layer.weight.data += alpha * torch.mm(weight_up, weight_down).unsqueeze(2).unsqueeze(3)
         else:
-            weight_up = state_dict[pair_keys[0]].to(base_torch_float)
-            weight_down = state_dict[pair_keys[1]].to(base_torch_float)
+            weight_up = state_dict[pair_keys[0]].to(torch.float64)
+            weight_down = state_dict[pair_keys[1]].to(torch.float64)
             curr_layer.weight.data += alpha * torch.mm(weight_up, weight_down)
 
         # update visited list
