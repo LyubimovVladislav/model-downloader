@@ -11,7 +11,7 @@ from civitai_model_data import CivitaiModelData
 from convert_lora_safetensor_to_diffusers import convert
 from downloader import download
 from exit_with_error import exit_with_error
-from user_decision import ask_for_link
+from user_decision import ask_for_base_model_link
 
 
 def make_arg_parser():
@@ -51,7 +51,7 @@ def load_lora(data, alpha, output):
     while True:
         if base_model_data:
             break
-        base_model_data = data.load_lora_base_model_info(ask_for_link())
+        base_model_data = data.load_lora_base_model_info(ask_for_base_model_link())
 
     download(base_model_data.download_url,
              file=base_model_data.checkpoint,
