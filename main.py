@@ -57,7 +57,8 @@ def load_lora(lora_data, alpha, output):
              remote_checksum=base_model_data.remote_checksum)
     # base.save_pretrained(save_directory=res_dir)
     pipe = convert(base_model_data, lora_data, alpha=alpha)
-    pipe = pipe.to(torch_dtype=torch.float16 if base_model_data.fp_half_precision else torch.float32, device='cuda')
+    pipe = pipe.to(torch_dtype=torch.float16 if base_model_data.fp_half_precision else torch.float32,
+                   torch_device='cuda')
     pipe.save_pretrained(output, safe_serialization=True)
     print('Conversion is done!')
 
