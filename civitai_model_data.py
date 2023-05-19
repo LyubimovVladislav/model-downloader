@@ -16,12 +16,12 @@ API_SEARCH_BY_NAME_ENDPOINT = 'https://civitai.com/api/v1/models'
 @dataclass
 class CivitaiModelData:
 
-    def __init__(self, url, response=None):
-        self.model_id = url.split('/')[0]
-        if self.model_id == '':
+    def __init__(self, model_id, response=None):
+        self.model_id = model_id
+        if model_id == '':
             exit_with_error('The provided url is not valid.')
         if not response:
-            request = requests.get(API_GET_BY_ID_ENDPOINT + self.model_id)
+            request = requests.get(API_GET_BY_ID_ENDPOINT + model_id)
             if request.status_code != 200:
                 exit_with_error('The provided url is not valid.')
             response = request.json()
@@ -55,7 +55,7 @@ class CivitaiModelData:
             return None
         response = request.json()
         try:
-            self.base = CivitaiModelData(url=response['items'][0]['modelVersions'][0]['files'][0]['downloadUrl'],
+            self.base = CivitaiModelData(model_id=response['items'][0]['id'],
                                          response=response['items'][0])
         except Exception as e:
             return None

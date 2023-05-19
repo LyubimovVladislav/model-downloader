@@ -61,8 +61,8 @@ def load_lora(lora_data, alpha, output):
     pipe.save_pretrained(output, safe_serialization=True)
 
 
-def civitai_link(url: str, alpha, output: str = None):
-    data = CivitaiModelData(url)
+def civitai_link(model_id: str, alpha, output: str = None):
+    data = CivitaiModelData(model_id)
     dir_name = f'{data.model_id}_{data.repo_name}_{data.version_name}'
 
     download(download_url=data.download_url, file=data.checkpoint, remote_checksum=data.remote_checksum)
@@ -114,7 +114,7 @@ def main():
     for prefix in ['https://civitai.com/models/', 'civitai.com/models/']:
         if args.url.startswith(prefix):
             remote_repo_type = 'civit'
-            args.url = args.url[len(prefix):]
+            args.url = args.url[len(prefix):].split('/')[0]
             break
 
     if remote_repo_type is None:
