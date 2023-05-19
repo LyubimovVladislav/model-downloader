@@ -78,7 +78,6 @@ def civitai_link(model_id: str, alpha, output: str = None):
     print('Note that the conversion process may take up to hours')
     pipe = StableDiffusionPipeline.from_ckpt(
         pretrained_model_link_or_path=data.checkpoint,
-        use_safetensors=data.checkpoint_format == 'SafeTensor',
         image_size=data.image_size,
         extract_ema=True,
         torch_dtype=torch.float16 if data.fp_half_precision else torch.float64

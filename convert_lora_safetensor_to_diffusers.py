@@ -28,7 +28,6 @@ def convert(base_data, lora_data, alpha=0.75, lora_prefix_text_encoder='lora_te'
     base_torch_float = torch.float16 if base_data.fp_half_precision else torch.float64
     pipeline = StableDiffusionPipeline.from_ckpt(
         pretrained_model_link_or_path=base_data.checkpoint,
-        use_safetensors=base_data.checkpoint_format == 'SafeTensor',
         image_size=base_data.image_size,
         extract_ema=True,
         torch_dtype=base_torch_float
