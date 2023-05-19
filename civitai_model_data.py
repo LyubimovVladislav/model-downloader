@@ -17,6 +17,7 @@ API_SEARCH_BY_NAME_ENDPOINT = 'https://civitai.com/api/v1/models'
 class CivitaiModelData:
 
     def __init__(self, model_id, response=None):
+        regex_str = '[\\/:*?"<>| ]*'
         self.model_id = model_id
         if model_id == '':
             exit_with_error('The provided url is not valid.')
@@ -27,8 +28,8 @@ class CivitaiModelData:
             response = request.json()
         self.image_size = 768 if response['modelVersions'][0]['baseModel'].split()[-1] == '768' else 512
         self.fp_half_precision = response['modelVersions'][0]['files'][0]['metadata']['fp'] == 'fp16'
-        self.repo_name = regex.sub('[\\\/:*?"<>| ]*', '', response['name'])
-        self.version_name = response['modelVersions'][0]['name'].replace(' ', '')
+        self.repo_name = regex.sub(regex_str, '', response['name'])
+        self.version_name = regex.sub(regex_str, '', response['modelVersions'][0]['name'])
         self.checkpoint_name = response['modelVersions'][0]['files'][0]['name']
 
         self.checkpoint_name = f'{self.model_id}_{self.checkpoint_name}'
