@@ -1,3 +1,5 @@
+from typing import Optional
+
 from colorama import Fore
 
 
@@ -14,3 +16,13 @@ def get_user_decision() -> bool:
             return False
         if user_decision == 'a' or user_decision == 'abort':
             exit(0)
+
+
+def ask_for_base_model_link() -> Optional[str]:
+    print('Cant find a LoRA base model. Please provide the base model link from Civitai.')
+    user_decision = input(f'Type {Fore.RED}a/abort{Fore.RESET} to exit the program\n'
+                          f'Awaiting base model linK: ')
+    user_decision = user_decision.strip()
+    if user_decision.lower() == 'a' or user_decision.lower() == 'abort':
+        exit(0)
+    return user_decision

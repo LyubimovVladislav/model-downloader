@@ -8,10 +8,10 @@ import torch
 from diffusers import StableDiffusionPipeline
 
 from civitai_model_data import CivitaiModelData
-from convert_lora_safetensor_to_diffusers import load_lora_weights
+from convert_lora_safetensor_to_diffusers import convert
 from downloader import download
-
-API_ENDPOINT = 'https://civitai.com/api/v1/models/'
+from exit_with_error import exit_with_error
+from user_decision import ask_for_link
 
 
 def make_arg_parser():
@@ -30,12 +30,13 @@ def make_arg_parser():
         type=str,
         default=None,
         help='Path to the output model.')
+    parser.add_argument(
+        '--alpha', '-a',
+        metavar="[0-1]",
+        type=int,
+        default=0.75,
+        help='The merging strength of LoRA weights. Can exceed 1 if you want to merge amplified LoRA weights')
     return parser.parse_args()
-
-
-def exit_with_error(err: str):
-    print(Fore.RED, err, Fore.RESET)
-    exit(0)
 
 
 def create_folders():
@@ -45,29 +46,31 @@ def create_folders():
         makedirs('models')
 
 
-def load_lora(data, output):
+def load_lora(data, alpha, output):
+    base_model_data = data.load_lora_base_model_info()
+    while True:
+        if base_model_data:
+            break
+        base_model_data = data.load_lora_base_model_info(ask_for_link())
 
-    file = 'checkpoints/stable_diffusion_1_5.safetensors'
-    download('https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/v1-5-pruned.safetensors',
-             file=file,
-             remote_checksum='1a189f0be69d6106a48548e7626207dddd7042a418dbf372cefd05e0cdba61b6')
-    res_dir = 'models/stable_diffusion_1_5'
-    base = StableDiffusionPipeline.from_ckpt(file, extract_ema=True,torch_dtype=torch.float16)
-    base.to("cuda")
+    download(base_model_data.download_url,
+             file=base_model_data.checkpoint,
+             remote_checksum=base_model_data.remote_checksum)
+    lora_base_torch_precision = torch.float16 if base_model_data.fp_half_precision else torch.float32
+    base_pipe = StableDiffusionPipeline.from_ckpt(
+        base_model_data.checkpoint,
+        extract_ema=True,
+        torch_dtype=lora_base_torch_precision)
+    base_pipe.to("cuda")
     # base.save_pretrained(save_directory=res_dir)
-    pipe = load_lora_weights(base, file)
-    pipe = pipe.to(torch_dtype=torch.float16 if data.fp_half_precision else torch.float32)
+    pipe = convert(base_model_data, torch_dtype=lora_base_torch_precision, alpha=alpha)
+    pipe = pipe.to(torch_dtype=lora_base_torch_precision, device='cuda')
     pipe.save_pretrained(output, safe_serialization=True)
 
 
-def civitai_link(model_id: str, output: str = None):
-    request = requests.get(API_ENDPOINT + model_id)
-    if request.status_code != 200:
-        exit_with_error('The provided url is not valid.')
-    response = request.json()
-
-    data = CivitaiModelData(response, model_id)
-    dir_name = f'{model_id}_{data.repo_name}_{data.version_name}'
+def civitai_link(url: str, alpha, output: str = None):
+    data = CivitaiModelData(url)
+    dir_name = f'{data.model_id}_{data.repo_name}_{data.version_name}'
 
     download(download_url=data.download_url, file=data.checkpoint, remote_checksum=data.remote_checksum)
 
@@ -75,7 +78,8 @@ def civitai_link(model_id: str, output: str = None):
         output = f'models/{dir_name}/'
 
     if data.type == 'LORA':
-        load_lora(data=data, output=output)
+        data.load_lora_base_model_info()
+        load_lora(data=data, alpha=alpha, output=output)
         return
 
     print('Note that the conversion process may take up to hours')
@@ -105,6 +109,8 @@ def hf_link(url: str, output: str = None):
 
 def main():
     args = make_arg_parser()
+    if args.alpha < 0:
+        exit_with_error('Alpha cant be negative')
     colorama_init()
     create_folders()
     remote_repo_type = None
@@ -124,10 +130,7 @@ def main():
     elif remote_repo_type == 'hf':
         hf_link(args.url, args.output)
     elif remote_repo_type == 'civit':
-        model_id = args.url.split('/')[0]
-        if model_id == '':
-            exit_with_error('The provided url is not valid.')
-        civitai_link(model_id, args.output)
+        civitai_link(args.url, args.alpha, args.output)
 
 
 if __name__ == "__main__":
