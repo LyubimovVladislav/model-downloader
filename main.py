@@ -59,6 +59,7 @@ def load_lora(lora_data, alpha, output):
     pipe = convert(base_model_data, lora_data, alpha=alpha)
     pipe = pipe.to(torch_dtype=torch.float16 if base_model_data.fp_half_precision else torch.float64, device='cuda')
     pipe.save_pretrained(output, safe_serialization=True)
+    print('Conversion is done!')
 
 
 def civitai_link(model_id: str, alpha, output: str = None):
