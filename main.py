@@ -57,9 +57,7 @@ def load_lora(lora_data, alpha, output):
              remote_checksum=base_model_data.remote_checksum)
     # base.save_pretrained(save_directory=res_dir)
     pipe = convert(base_model_data, lora_data, alpha=alpha)
-    # torch.float16 if base_model_data.fp_half_precision else torch.float64
-    print('converted')
-    pipe = pipe.to(torch_dtype=torch.float64, device='cuda')
+    pipe = pipe.to(torch_dtype=torch.float16 if base_model_data.fp_half_precision else torch.float32, device='cuda')
     pipe.save_pretrained(output, safe_serialization=True)
     print('Conversion is done!')
 
@@ -83,7 +81,7 @@ def civitai_link(model_id: str, alpha, output: str = None):
         pretrained_model_link_or_path=data.checkpoint,
         image_size=data.image_size,
         extract_ema=True,
-        torch_dtype=torch.float16 if data.fp_half_precision else torch.float64
+        torch_dtype=torch.float16 if data.fp_half_precision else torch.float32
     )
 
     pipe.to(torch_device='cuda')

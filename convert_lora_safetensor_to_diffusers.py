@@ -29,7 +29,7 @@ def convert(base_data, lora_data, alpha=0.75, lora_prefix_text_encoder='lora_te'
         pretrained_model_link_or_path=base_data.checkpoint,
         image_size=base_data.image_size,
         extract_ema=True,
-        torch_dtype=torch.float64
+        torch_dtype=torch.float32
     )
 
     # load LoRA weight from .safetensors
@@ -78,12 +78,12 @@ def convert(base_data, lora_data, alpha=0.75, lora_prefix_text_encoder='lora_te'
 
         # update weight
         if len(state_dict[pair_keys[0]].shape) == 4:
-            weight_up = state_dict[pair_keys[0]].squeeze(3).squeeze(2).to(torch.float64)
-            weight_down = state_dict[pair_keys[1]].squeeze(3).squeeze(2).to(torch.float64)
+            weight_up = state_dict[pair_keys[0]].squeeze(3).squeeze(2).to(torch.float32)
+            weight_down = state_dict[pair_keys[1]].squeeze(3).squeeze(2).to(torch.float32)
             curr_layer.weight.data += alpha * torch.mm(weight_up, weight_down).unsqueeze(2).unsqueeze(3)
         else:
-            weight_up = state_dict[pair_keys[0]].to(torch.float64)
-            weight_down = state_dict[pair_keys[1]].to(torch.float64)
+            weight_up = state_dict[pair_keys[0]].to(torch.float32)
+            weight_down = state_dict[pair_keys[1]].to(torch.float32)
             curr_layer.weight.data += alpha * torch.mm(weight_up, weight_down)
 
         # update visited list
