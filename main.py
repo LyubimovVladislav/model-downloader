@@ -56,15 +56,14 @@ def load_lora(data, alpha, output):
     download(base_model_data.download_url,
              file=base_model_data.checkpoint,
              remote_checksum=base_model_data.remote_checksum)
-    lora_base_torch_precision = torch.float16 if base_model_data.fp_half_precision else torch.float32
     base_pipe = StableDiffusionPipeline.from_ckpt(
         base_model_data.checkpoint,
         extract_ema=True,
-        torch_dtype=lora_base_torch_precision)
+        torch_dtype=torch.float32)
     base_pipe.to("cuda")
     # base.save_pretrained(save_directory=res_dir)
-    pipe = convert(base_model_data, torch_dtype=lora_base_torch_precision, alpha=alpha)
-    pipe = pipe.to(torch_dtype=lora_base_torch_precision, device='cuda')
+    pipe = convert(base_model_data, alpha=alpha)
+    pipe = pipe.to(torch_dtype=torch.float16 if base_model_data.fp_half_precision else torch.float64, device='cuda')
     pipe.save_pretrained(output, safe_serialization=True)
 
 

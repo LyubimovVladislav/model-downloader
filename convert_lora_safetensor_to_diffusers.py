@@ -23,7 +23,7 @@ from safetensors.torch import load_file
 from diffusers.pipelines.stable_diffusion.convert_from_ckpt import download_from_original_stable_diffusion_ckpt
 
 
-def convert(base_data, torch_dtype, alpha=0.75, lora_prefix_text_encoder='lora_te',
+def convert(base_data, alpha=0.75, lora_prefix_text_encoder='lora_te',
             lora_prefix_unet='lora_unet'):
     # load base model
     pipeline = download_from_original_stable_diffusion_ckpt(
@@ -80,12 +80,12 @@ def convert(base_data, torch_dtype, alpha=0.75, lora_prefix_text_encoder='lora_t
 
         # update weight
         if len(state_dict[pair_keys[0]].shape) == 4:
-            weight_up = state_dict[pair_keys[0]].squeeze(3).squeeze(2).to(torch_dtype)
-            weight_down = state_dict[pair_keys[1]].squeeze(3).squeeze(2).to(torch_dtype)
+            weight_up = state_dict[pair_keys[0]].squeeze(3).squeeze(2).to(torch.float32)
+            weight_down = state_dict[pair_keys[1]].squeeze(3).squeeze(2).to(torch.float32)
             curr_layer.weight.data += alpha * torch.mm(weight_up, weight_down).unsqueeze(2).unsqueeze(3)
         else:
-            weight_up = state_dict[pair_keys[0]].to(torch_dtype)
-            weight_down = state_dict[pair_keys[1]].to(torch_dtype)
+            weight_up = state_dict[pair_keys[0]].to(torch.float32)
+            weight_down = state_dict[pair_keys[1]].to(torch.float32)
             curr_layer.weight.data += alpha * torch.mm(weight_up, weight_down)
 
         # update visited list
