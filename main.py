@@ -50,7 +50,7 @@ def load_lora(lora_data, alpha, output):
         if base_model_data:
             break
         try:
-            base_model_data = lora_data.load_lora_base_model_info(ask_for_base_model_link())
+            base_model_data = lora_data.load_lora_from_url(ask_for_base_model_link())
         except ValueError as e:
             print(e)
 

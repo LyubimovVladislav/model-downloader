@@ -47,9 +47,25 @@ class CivitaiModelData:
         except Exception as e:
             pass
 
-    def load_lora_base_model_info(self, url=None):
-        if not self.base_model_name and url is None:
+    def load_lora_base_model_info(self):
+        if not self.base_model_name:
             return None
+        request = requests.get(
+            API_SEARCH_BY_NAME_ENDPOINT,
+            params={"limit": 1, "query": self.base_model_name})
+        if request.status_code != 200:
+            return None
+        response = request.json()
+        try:
+            self.base = CivitaiModelData(model_id=response['items'][0]['id'],
+                                         response=response['items'][0])
+        except Exception as e:
+            return None
+        return self.base
+
+    def load_lora_from_url(self, url):
+        if url is None:
+            raise ValueError('Url link cant be empty!')
         for prefix in ['https://civitai.com/models/', 'civitai.com/models/']:
             if url.startswith(prefix):
                 model_id = url[len(prefix):].split('/')[0]
