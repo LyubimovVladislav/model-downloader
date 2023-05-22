@@ -45,23 +45,14 @@ class CivitaiModelData:
         try:
             self.base_model_name = response['modelVersions'][0]['images'][0]['meta']['Model']
         except Exception as e:
-            try:
-                self.base_model_name = response['modelVersions'][0]['images'][0]['meta'][0]['Model']
-            except Exception as e:
-                pass
+            pass
 
     def load_lora_base_model_info(self, url=None):
         if not self.base_model_name and url is None:
             return None
-        request = requests.get(
-            API_SEARCH_BY_NAME_ENDPOINT,
-            params={"limit": 1, "query": url if url else self.base_model_name})
-        if request.status_code != 200:
-            return None
-        response = request.json()
-        try:
-            self.base = CivitaiModelData(model_id=response['items'][0]['id'],
-                                         response=response['items'][0])
-        except Exception as e:
-            return None
-        return self.base
+        for prefix in ['https://civitai.com/models/', 'civitai.com/models/']:
+            if url.startswith(prefix):
+                model_id = url[len(prefix):].split('/')[0]
+                self.base = CivitaiModelData(model_id=model_id)
+                return self.base
+        return None
