@@ -21,11 +21,11 @@ class CivitaiModelData:
         regex_pattern = f'[{regex_pattern}]*'
         self.model_id = model_id
         if model_id == '':
-            exit_with_error('The provided url is not valid.')
+            raise ValueError('The provided url is not valid.')
         if not response:
             request = requests.get(API_GET_BY_ID_ENDPOINT + model_id)
             if request.status_code != 200:
-                exit_with_error('The provided url is not valid.')
+                raise ValueError('The provided url is not valid.')
             response = request.json()
         self.image_size = 768 if response['modelVersions'][0]['baseModel'].split()[-1] == '768' else 512
         self.fp_half_precision = response['modelVersions'][0]['files'][0]['metadata']['fp'] == 'fp16'

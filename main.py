@@ -3,7 +3,6 @@ import torch
 from os.path import isdir, dirname
 from os import makedirs
 from colorama import init as colorama_init
-from diffusers.pipelines.stable_diffusion.convert_from_ckpt import download_from_original_stable_diffusion_ckpt
 from diffusers import StableDiffusionPipeline
 
 from civitai_model_data import CivitaiModelData
@@ -50,7 +49,10 @@ def load_lora(lora_data, alpha, output):
     while True:
         if base_model_data:
             break
-        base_model_data = lora_data.load_lora_base_model_info(ask_for_base_model_link())
+        try:
+            base_model_data = lora_data.load_lora_base_model_info(ask_for_base_model_link())
+        except ValueError as e:
+            print(e)
 
     download(base_model_data.download_url,
              file=base_model_data.checkpoint,
@@ -64,7 +66,10 @@ def load_lora(lora_data, alpha, output):
 
 
 def civitai_link(model_id: str, alpha, output: str = None):
-    data = CivitaiModelData(model_id)
+    try:
+        data = CivitaiModelData(model_id)
+    except ValueError as e:
+        return exit_with_error(str(e))
     dir_name = f'{data.model_id}_{data.repo_name}_{data.version_name}'
 
     download(download_url=data.download_url, file=data.checkpoint, remote_checksum=data.remote_checksum)
