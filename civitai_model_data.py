@@ -45,10 +45,13 @@ class CivitaiModelData:
         try:
             self.base_model_name = response['modelVersions'][0]['images'][0]['meta']['Model']
         except Exception as e:
-            pass
+            try:
+                self.base_model_name = response['modelVersions'][0]['images'][0]['meta'][0]['Model']
+                except Exception as e:
+                    pass
 
     def load_lora_base_model_info(self, url=None):
-        if not self.base_model_name:
+        if not self.base_model_name and url is None:
             return None
         request = requests.get(
             API_SEARCH_BY_NAME_ENDPOINT,
