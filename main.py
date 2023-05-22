@@ -51,7 +51,7 @@ def load_lora(lora_data, alpha, output):
             break
         try:
             base_model_data = lora_data.load_lora_from_url(ask_for_base_model_link())
-        except ValueError as e:
+        except (ValueError, KeyError) as e:
             print(e)
 
     download(base_model_data.download_url,
@@ -68,7 +68,7 @@ def load_lora(lora_data, alpha, output):
 def civitai_link(model_id: str, alpha, output: str = None):
     try:
         data = CivitaiModelData(model_id)
-    except ValueError as e:
+    except (ValueError, KeyError) as e:
         return exit_with_error(str(e))
     dir_name = f'{data.model_id}_{data.repo_name}_{data.version_name}'
 
@@ -118,7 +118,7 @@ def main():
             return
     for prefix in ['https://civitai.com/models/', 'civitai.com/models/']:
         if args.url.startswith(prefix):
-            model_id = args.url[len(prefix):].split('/')[0]
+            model_id = args.url[len(prefix):].split('/')[0].split('?')[0]
             civitai_link(model_id, args.alpha, args.output)
             return
     exit_with_error('The provided url is not valid.')

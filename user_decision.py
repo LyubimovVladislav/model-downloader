@@ -19,10 +19,21 @@ def get_user_decision() -> bool:
 
 
 def ask_for_base_model_link() -> Optional[str]:
-    print('Cant find a LoRA base model. Please provide the base model link from Civitai.')
-    user_decision = input(f'Type {Fore.RED}a/abort{Fore.RESET} to exit the program\n'
-                          f'Awaiting base model link: ')
+    print('Cant find a LoRA base model. Please provide the base model link from Civitai or '
+          f'type {Fore.RED}a/abort{Fore.RESET} to exit the program.')
+    user_decision = input('>')
     user_decision = user_decision.strip()
     if user_decision.lower() == 'a' or user_decision.lower() == 'abort':
         exit(0)
     return user_decision
+
+
+def ask_what_version_to_download(name, versions) -> int:
+    while True:
+        print(f'Found multiple versions of the {name}.\n'
+              f'Specify which version do you want to download.\n'
+              f'Options: {", ".join(versions.keys())}')
+        user_decision = input('>')
+        user_decision = user_decision.strip()
+        if user_decision in versions:
+            return versions[user_decision]

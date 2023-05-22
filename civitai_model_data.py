@@ -6,7 +6,7 @@ from typing import Optional
 
 import requests
 
-from exit_with_error import exit_with_error
+from user_decision import ask_what_version_to_download
 
 API_GET_BY_ID_ENDPOINT = 'https://civitai.com/api/v1/models/'
 API_SEARCH_BY_NAME_ENDPOINT = 'https://civitai.com/api/v1/models'
@@ -27,25 +27,29 @@ class CivitaiModelData:
             if request.status_code != 200:
                 raise ValueError('The provided url is not valid.')
             response = request.json()
-        self.image_size = 768 if response['modelVersions'][0]['baseModel'].split()[-1] == '768' else 512
-        self.fp_half_precision = response['modelVersions'][0]['files'][0]['metadata']['fp'] == 'fp16'
-        self.repo_name = regex.sub(regex_pattern, '', response['name'])
-        self.version_name = regex.sub(regex_pattern, '', response['modelVersions'][0]['name'])
-        self.checkpoint_name = response['modelVersions'][0]['files'][0]['name']
-
-        self.checkpoint_name = f'{self.model_id}_{self.checkpoint_name}'
-        self.checkpoint_format = response['modelVersions'][0]['files'][0]['metadata']['format']
-
-        self.download_url = response['modelVersions'][0]['files'][0]['downloadUrl']
-        self.checkpoint = f'{dirname(__file__)}/checkpoints/{self.checkpoint_name}'
-        self.remote_checksum = response['modelVersions'][0]['files'][0]['hashes']['SHA256']
-        self.remote_size_bytes = int(response['modelVersions'][0]['files'][0]['sizeKB'] * 1024)
-        self.type = response['type']
+        self.name = response['name']
+        self.versions = {x['name']: idx for idx, x in enumerate(response['modelVersions'])}
+        self.v = 0 if len(self.versions) == 1 else ask_what_version_to_download(self.name, self.versions)
+        try:
+            self.image_size = 768 if response['modelVersions'][self.v]['baseModel'].split()[-1] == '768' else 512
+            self.fp_half_precision = response['modelVersions'][self.v]['files'][0]['metadata']['fp'] == 'fp16'
+            self.repo_name = regex.sub(regex_pattern, '', self.name)
+            self.version_name = regex.sub(regex_pattern, '', response['modelVersions'][0]['name'])
+            self.checkpoint_name = response['modelVersions'][self.v]['files'][0]['name']
+            self.checkpoint_name = f'{self.model_id}_{self.checkpoint_name}'
+            self.checkpoint_format = response['modelVersions'][self.v]['files'][0]['metadata']['format']
+            self.download_url = response['modelVersions'][self.v]['files'][0]['downloadUrl']
+            self.checkpoint = f'{dirname(__file__)}/checkpoints/{self.checkpoint_name}'
+            self.remote_checksum = response['modelVersions'][self.v]['files'][0]['hashes']['SHA256']
+            self.remote_size_bytes = int(response['modelVersions'][self.v]['files'][0]['sizeKB'] * 1024)
+            self.type = response['type']
+        except KeyError as e:
+            raise KeyError(f'Value {e} cant be accessed. Seems that the model repository is missing it.')
         self.base: Optional[CivitaiModelData] = None
         try:
-            self.base_model_name = response['modelVersions'][0]['images'][0]['meta']['Model']
-        except Exception as e:
-            pass
+            self.base_model_name = response['modelVersions'][self.v]['images'][0]['meta']['Model']
+        except (KeyError,TypeError) as e:
+            self.base_model_name = None
 
     def load_lora_base_model_info(self):
         if not self.base_model_name:
@@ -68,7 +72,7 @@ class CivitaiModelData:
             raise ValueError('Url link cant be empty!')
         for prefix in ['https://civitai.com/models/', 'civitai.com/models/']:
             if url.startswith(prefix):
-                model_id = url[len(prefix):].split('/')[0]
+                model_id = url[len(prefix):].split('/')[0].split('?')[0]
                 self.base = CivitaiModelData(model_id=model_id)
                 return self.base
         return None
