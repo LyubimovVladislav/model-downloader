@@ -1,9 +1,12 @@
 from typing import Optional
 
 from colorama import Fore
+import config
 
 
 def get_user_decision() -> bool:
+    if config.auto_resolve:
+        return True
     print('Override the existing file?')
     while True:
         user_decision = input(f'Type {Fore.RED}y/yes{Fore.RESET} to re-download and override the checkpoint file, '
@@ -20,6 +23,8 @@ def get_user_decision() -> bool:
 
 
 def ask_for_base_model_link() -> Optional[str]:
+    if config.auto_resolve:
+        return 'https://huggingface.co/runwayml/stable-diffusion-v1-5/blob/main/v1-5-pruned-emaonly.ckpt'
     print('Cant find a LoRA base model. Please provide the base model link from Civitai or '
           f'type {Fore.RED}a/abort{Fore.RESET} to exit the program.')
     user_decision = input('> ')
@@ -30,6 +35,8 @@ def ask_for_base_model_link() -> Optional[str]:
 
 
 def ask_what_version_to_download(name, versions) -> int:
+    if config.auto_resolve:
+        return 0
     while True:
         print(f'Found multiple versions of the {name}.\n'
               f'Specify which version do you want to download or type {Fore.RED}a/abort{Fore.RESET}'

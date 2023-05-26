@@ -1,3 +1,4 @@
+import copy
 from dataclasses import dataclass
 
 import re as regex
@@ -30,6 +31,7 @@ class CivitaiModelData:
         self.name = response['name']
         self.versions = {x['name']: idx for idx, x in enumerate(response['modelVersions'])}
         self.v = 0 if len(self.versions) == 1 else ask_what_version_to_download(self.name, self.versions)
+        self.civitai_base = True
         try:
             self.image_size = 768 if response['modelVersions'][self.v]['baseModel'].split()[-1] == '768' else 512
             self.fp_half_precision = response['modelVersions'][self.v]['files'][0]['metadata']['fp'] == 'fp16'
@@ -48,7 +50,7 @@ class CivitaiModelData:
         self.base: Optional[CivitaiModelData] = None
         try:
             self.base_model_name = response['modelVersions'][self.v]['images'][0]['meta']['Model']
-        except (KeyError,TypeError) as e:
+        except (KeyError, TypeError) as e:
             self.base_model_name = None
 
     def load_lora_base_model_info(self):
@@ -67,7 +69,7 @@ class CivitaiModelData:
             return None
         return self.base
 
-    def load_lora_from_url(self, url):
+    def load_lora_base_from_url(self, url):
         if url is None:
             raise ValueError('Url link cant be empty!')
         for prefix in ['https://civitai.com/models/', 'civitai.com/models/']:
@@ -75,4 +77,10 @@ class CivitaiModelData:
                 model_id = url[len(prefix):].split('/')[0].split('?')[0]
                 self.base = CivitaiModelData(model_id=model_id)
                 return self.base
+        for prefix in ['https://huggingface.co/', 'huggingface.co/', 'hf.co/', 'https://hf.co/']:
+            if url.startswith(prefix):
+                self.civitai_base = False
+                deep_copy = copy.deepcopy(self)
+                deep_copy.checkpoint = url
+                return deep_copy
         return None

@@ -5,6 +5,7 @@ from os import makedirs
 from colorama import init as colorama_init
 from diffusers import StableDiffusionPipeline
 
+import config
 from civitai_model_data import CivitaiModelData
 from convert_lora_safetensor_to_diffusers import convert
 from downloader import download
@@ -16,24 +17,29 @@ def make_arg_parser():
     parser = argparse.ArgumentParser(
         prog='CivitAI model downloader',
         description='Downloads a checkpoint from CivitAI and outputs a model to use in diffusers.',
-        epilog='Text at the bottom of help')
+        epilog='Url tag is required, all other options are optional')
     parser.add_argument(
-        '--url', '-u',
+        '-u', '--url',
         type=str,
         required=True,
         default=None,
         help='Url to the CivitAI checkpoint to download and convert.')
     parser.add_argument(
-        '--output', '-o',
+        '-o', '--output',
         type=str,
         default=None,
         help='Path to the output model.')
     parser.add_argument(
-        '--alpha', '-a',
+        '-a', '--alpha',
         metavar="[0-1]",
         type=int,
         default=0.75,
         help='The merging strength of LoRA weights. Can exceed 1 if you want to merge amplified LoRA weights')
+    parser.add_argument(
+        '-r', '--auto_resolve',
+        action='store_true',
+        help='Use this to auto resolve all the decisions where user input is required'
+    )
     return parser.parse_args()
 
 
@@ -50,13 +56,13 @@ def load_lora(lora_data, alpha, output):
         if base_model_data:
             break
         try:
-            base_model_data = lora_data.load_lora_from_url(ask_for_base_model_link())
+            base_model_data = lora_data.load_lora_base_from_url(ask_for_base_model_link())
         except (ValueError, KeyError) as e:
             print(e)
-
-    download(base_model_data.download_url,
-             file=base_model_data.checkpoint,
-             remote_checksum=base_model_data.remote_checksum)
+    if lora_data.civitai_base:
+        download(base_model_data.download_url,
+                 file=base_model_data.checkpoint,
+                 remote_checksum=base_model_data.remote_checksum)
     # base.save_pretrained(save_directory=res_dir)
     pipe = convert(base_model_data, lora_data, alpha=alpha)
     pipe = pipe.to(torch_dtype=torch.float16 if base_model_data.fp_half_precision else torch.float32,
@@ -111,6 +117,7 @@ def main():
         exit_with_error('Alpha cant be negative')
     colorama_init()
     create_folders()
+    config.init(args.auto_resolve)
 
     for prefix in ['https://huggingface.co/', 'huggingface.co/', 'hf.co/', 'https://hf.co/']:
         if args.url.startswith(prefix):
